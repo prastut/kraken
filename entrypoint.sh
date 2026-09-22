@@ -44,6 +44,24 @@ else
   echo "[kraken] TS_AUTHKEY not set; tailscale idle. Railway SSH still works."
 fi
 
+# --- export Railway variables to user shells ---------------------------------------
+# sshd and Tailscale SSH strip the daemon environment, so shells never see Railway
+# variables (OPENROUTER_API_KEY etc.). Write them to a private file that .bashrc sources.
+ENV_FILE="$HOME_DIR/.config/kraken/env.sh"
+mkdir -p "$(dirname "$ENV_FILE")"
+{
+  echo "# generated at boot by entrypoint.sh — do not edit; set variables in Railway"
+  env -0 | while IFS= read -r -d "" kv; do
+    k="${kv%%=*}"; v="${kv#*=}"
+    case "$k" in
+      RAILWAY_*|TS_AUTHKEY|TS_DEBUG_*|KRAKEN_AUTHORIZED_KEYS|HOME|PATH|PWD|SHLVL|_|OLDPWD|HOSTNAME|TERM|LANG|DEBIAN_FRONTEND) continue ;;
+    esac
+    printf 'export %s=%q\n' "$k" "$v"
+  done
+} > "$ENV_FILE"
+chown "$USER_NAME:$USER_NAME" "$ENV_FILE"; chmod 600 "$ENV_FILE"
+echo "[kraken] $(grep -c '^export' "$ENV_FILE") variables exported to $ENV_FILE"
+
 # --- OpenSSH on 127.0.0.1:2222, reachable only via the tailnet --------------------
 # Tailscale SSH (port 22) stays on; this is the path Herdr uses. Authorized keys come
 # from KRAKEN_AUTHORIZED_KEYS (Railway variable, newline-separated public keys).
