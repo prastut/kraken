@@ -41,7 +41,10 @@ ENV LANG=en_US.UTF-8
 
 # Non-root user; home is the volume mount point (entrypoint fixes ownership on boot).
 RUN useradd -m -u 1000 -s /bin/bash nfp \
+    && usermod -p "*" nfp \
     && echo "nfp ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/nfp
+# usermod -p "*": no password, but NOT locked — sshd (UsePAM no) treats a locked ("!")
+# account as an invalid user and rejects keys before reading authorized_keys.
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
