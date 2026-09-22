@@ -44,6 +44,38 @@ else
   echo "[kraken] TS_AUTHKEY not set; tailscale idle. Railway SSH still works."
 fi
 
+# --- OpenSSH on 127.0.0.1:2222, reachable only via the tailnet --------------------
+# Tailscale SSH (port 22) stays on; this is the path Herdr uses. Authorized keys come
+# from KRAKEN_AUTHORIZED_KEYS (Railway variable, newline-separated public keys).
+if [ -n "${KRAKEN_AUTHORIZED_KEYS:-}" ]; then
+  SSHD_DIR="$HOME_DIR/.ssh-host"
+  mkdir -p "$SSHD_DIR" "$HOME_DIR/.ssh" /run/sshd
+  [ -f "$SSHD_DIR/ssh_host_ed25519_key" ] || ssh-keygen -q -t ed25519 -N "" -f "$SSHD_DIR/ssh_host_ed25519_key"
+  printf '%s\n' "$KRAKEN_AUTHORIZED_KEYS" > "$HOME_DIR/.ssh/authorized_keys"
+  cat > "$SSHD_DIR/sshd_config" <<SSHDCFG
+Port 2222
+ListenAddress 127.0.0.1
+HostKey $SSHD_DIR/ssh_host_ed25519_key
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PubkeyAuthentication yes
+AllowUsers $USER_NAME
+ClientAliveInterval 30
+ClientAliveCountMax 3
+UsePAM no
+Subsystem sftp /usr/lib/openssh/sftp-server
+SSHDCFG
+  chown -R "$USER_NAME:$USER_NAME" "$HOME_DIR/.ssh" "$SSHD_DIR"
+  chmod 700 "$HOME_DIR/.ssh"; chmod 600 "$HOME_DIR/.ssh/authorized_keys" "$SSHD_DIR/ssh_host_ed25519_key"
+  /usr/sbin/sshd -f "$SSHD_DIR/sshd_config" && echo "[kraken] sshd listening on 127.0.0.1:2222"
+  tailscale serve --bg --tcp 2222 tcp://127.0.0.1:2222 >/dev/null 2>&1 \
+    && echo "[kraken] tailnet :2222 -> sshd" \
+    || echo "[kraken] tailscale serve failed (is tailscale up?)"
+else
+  echo "[kraken] KRAKEN_AUTHORIZED_KEYS not set; sshd not started (Tailscale SSH on :22 still works)"
+fi
+
 # --- herdr server ----------------------------------------------------------------
 # Herdr installs its server binary into the user's home (on the volume); it dies with
 # every redeploy and only `herdr machine add` restarts it, so do it here on boot.

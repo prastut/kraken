@@ -10,7 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       git openssh-client tmux ripgrep less vim procps sudo locales unzip \
       build-essential pkg-config python3 python3-venv \
       chromium fonts-liberation fonts-noto-color-emoji \
+      openssh-server \
     && rm -rf /var/lib/apt/lists/*
+# `openssh-server`: classic sshd on 127.0.0.1:2222, exposed only on the tailnet via
+# `tailscale serve` (entrypoint). Herdr's bridge is flaky over Tailscale SSH; fine over OpenSSH.
 # `chromium` is only here to pull in every shared library Playwright's own
 # Chromium build needs; `npx playwright install chromium` then just works.
 
