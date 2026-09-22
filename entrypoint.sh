@@ -44,6 +44,15 @@ else
   echo "[kraken] TS_AUTHKEY not set; tailscale idle. Railway SSH still works."
 fi
 
+# --- herdr server ----------------------------------------------------------------
+# Herdr installs its server binary into the user's home (on the volume); it dies with
+# every redeploy and only `herdr machine add` restarts it, so do it here on boot.
+if [ -x "$HOME_DIR/.local/bin/herdr" ]; then
+  rm -f "$HOME_DIR/.config/herdr/"*.sock
+  su - "$USER_NAME" -c 'setsid nohup "$HOME/.local/bin/herdr" server >"$HOME/.config/herdr/server-stdout.log" 2>&1 </dev/null &'
+  echo "[kraken] herdr server started as $USER_NAME"
+fi
+
 echo "[kraken] ready. user=$USER_NAME home=$HOME_DIR"
 
 # --- 3. park -------------------------------------------------------------------
