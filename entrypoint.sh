@@ -19,9 +19,11 @@ fi
 TS_STATE_DIR="$HOME_DIR/.tailscale"
 mkdir -p "$TS_STATE_DIR"
 
+# --statedir (not --state): tailscaled also needs a writable dir for SSH host keys,
+# otherwise Tailscale SSH silently reports itself disabled.
 tailscaled \
   --tun=userspace-networking \
-  --state="$TS_STATE_DIR/tailscaled.state" \
+  --statedir="$TS_STATE_DIR" \
   --socket=/var/run/tailscale/tailscaled.sock \
   > /var/log/tailscaled.log 2>&1 &
 
