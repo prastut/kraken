@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl wget gnupg \
       git openssh-client tmux ripgrep less vim procps sudo locales unzip \
+      zstd aria2 \
       build-essential pkg-config python3 python3-venv \
       chromium fonts-liberation fonts-noto-color-emoji \
       openssh-server \
