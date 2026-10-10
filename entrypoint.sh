@@ -59,7 +59,7 @@ mkdir -p "$(dirname "$ENV_FILE")"
     printf 'export %s=%q\n' "$k" "$v"
   done
 } > "$ENV_FILE"
-chown "$USER_NAME:$USER_NAME" "$ENV_FILE"; chmod 600 "$ENV_FILE"
+chown "$USER_NAME:$USER_NAME" "$(dirname "$ENV_FILE")" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 echo "[kraken] $(grep -c '^export' "$ENV_FILE") variables exported to $ENV_FILE"
 
 # --- OpenSSH on 127.0.0.1:2222, reachable only via the tailnet --------------------
@@ -102,6 +102,21 @@ if [ -x "$HOME_DIR/.local/bin/herdr" ]; then
   su - "$USER_NAME" -c 'setsid nohup "$HOME/.local/bin/herdr" server >"$HOME/.config/herdr/server-stdout.log" 2>&1 </dev/null &'
   echo "[kraken] herdr server started as $USER_NAME"
 fi
+
+# --- hermes gateway --------------------------------------------------------------
+# Hermes lives on the volume too. Its gateway is what fires `hermes cron` jobs (the
+# P1 Slack summary) and holds the Slack connection; nothing else restarts it on boot.
+if [ -x "$HOME_DIR/.local/bin/hermes" ]; then
+  su - "$USER_NAME" -c 'setsid nohup "$HOME/.local/bin/hermes" gateway run >"$HOME/.hermes/logs/gateway-stdout.log" 2>&1 </dev/null &'
+  echo "[kraken] hermes gateway started as $USER_NAME"
+fi
+
+# --- reaper ----------------------------------------------------------------------
+# Stops dev servers and agent sessions left idle (Railway bills RAM around the clock).
+# Runs as the user so it can never touch root's processes; su - drops the daemon env,
+# so source the exported Railway variables (KRAKEN_REAP_*) first.
+su - "$USER_NAME" -c '. "$HOME/.config/kraken/env.sh"; setsid nohup /usr/local/bin/kraken-reaper >/dev/null 2>&1 </dev/null &'
+echo "[kraken] reaper started as $USER_NAME (log: $HOME_DIR/.config/kraken/reaper.log)"
 
 echo "[kraken] ready. user=$USER_NAME home=$HOME_DIR"
 
